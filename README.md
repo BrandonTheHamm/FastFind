@@ -22,8 +22,9 @@ A sublime plugin for wicket fast search/find in sublime project.
 
 ## Usage
 * Once installed, the plugin will work only if files are saved under a project and if the project is open
+* Ensure that the project file is saved under the root directory of your source tree
 * Right click will add a Fast Find option if the plugin is loaded by Sublime Text
-* You can added multiple seach folders for large projects to optimize FastFind using the ```Fast Find > Add new seach location``` option
+* You can added multiple seach folders for large projects to optimize FastFind using the ```Fast Find > Add new seach location``` option (see ```Adding seach location``` section)
 * Open settings file using the ```Fast Find > Settings``` option
 * Each search opens a new view in sublime text, double click the seach to jump to location in project file
 * All open Fast Find views can be closed using the ```Fast Find > Close all Fast Find Tabs```
@@ -66,5 +67,13 @@ Below is an example settings file
 * ```FastFindSublime_before_context```: Number of lines of context before hit
 * ```FastFindSublime_after_context```: Number of lines of context after hit
 * ```FastFindSublime_display_outline```: Draw outline around search keywords
+## Adding new search location
+To streamline your searches, you can add multiple search location paths. This is especially useful for large projects. For example, instead of searching entire projects root folder, you can just search under a specific folder. To added a new search location, follow the steps below:
+* Right click and select ```Fast Find > Add new search location```
+* This will open the context menu JSON file specific to Fast Find
+* Follow the comments in the JSON file to add more search locations
+* You can also update the sample seach location provided with the default file to suit your needs
+* Folder path is relative to project files root location
+
 ## RipGrep
 RipGrep executable and project details can be found at https://github.com/BurntSushi/ripgrep
