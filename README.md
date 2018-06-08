@@ -65,4 +65,5 @@ Below is an example settings file
 * ```FastFindSublime_before_context```: Number of lines of context before hit
 * ```FastFindSublime_after_context```: Number of lines of context after hit
 * ```FastFindSublime_display_outline```: Draw outline around search keywords
-
+## RipGrep
+RipGrep executable and project details can be found at https://github.com/BurntSushi/ripgrep
