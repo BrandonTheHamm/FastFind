@@ -1,0 +1,24 @@
+{
+	"FastFindSublime_file_type_pattern":
+	[
+		"c",
+		"cpp",
+		"sh",
+		"make"
+	],
+	"FastFindSublime_non_std_file_type_pattern":
+	[
+		"x",
+		"s",
+		"scons",
+		"api",
+	],
+	"FastFindSublime_ignore_folders":
+	[
+	],
+	"FastFindSublime_prompt_before_searching": false,
+	"FastFindSublime_executable": "rg",
+	"FastFindSublime_before_context":1,
+	"FastFindSublime_after_context":1,
+	"FastFindSublime_display_outline": true,
+}
