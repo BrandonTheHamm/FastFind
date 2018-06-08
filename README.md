@@ -16,8 +16,9 @@ A sublime plugin for wicket fast search/find in sublime project.
 * Not tested in Sublime Text 2
 
 ## Installation
-Clone the repo or download zip. The files need to in a folder (eg: FastFind) under the sublime plugsins folder
-Copy the contents of the User directory to sublime plugins user directory. If you already have customer actions for mouse click defined in ```Default (Windows0.sublime-mousemap``` then merge the contents. If you are not on windows, then update your corresponding OS specific mouse map.
+* Clone the repo or download zip
+* The files need to in a folder (eg: FastFind) under the sublime plugsins folder 
+* Move the contents of the User directory to sublime plugins user directory. If you already have customer actions for mouse click defined in ```Default (Windows).sublime-mousemap``` then merge the contents. If you are not on windows, then update your corresponding OS specific mouse map file.
 
 ## Usage
 * Once installed, the plugin will work only if files are saved under a project and if the project is open
