@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>fileTypes</key>
+  <array>
+    <string>ssraw</string>
+  </array>
+  <key>name</key>
+  <string>Mazanin</string>
+  <key>patterns</key>
+  <array>
+    <dict>
+      <key>match</key>
+      <string>(--)</string>
+      <key>name</key>
+      <string>keyword.other.ldif</string>
+    </dict>
+    <dict>
+      <key>match</key>
+      <string>\b([W,w]arning(s)?)\b</string>
+      <key>name</key>
+      <string>string.quoted.safe.ldif</string>
+    </dict>
+    <dict>
+      <key>match</key>
+      <string>(.*):\d*:</string>
+      <key>name</key>
+      <string>constant.numeric.ldif</string>
+    </dict>
+    <dict>
+      <key>match</key>
+      <string>(instantiation|required|candidate)</string>
+      <key>name</key>
+      <string>constant.numeric.ldif</string>
+    </dict>
+    <dict>
+      <key>match</key>
+      <string>(\d+[:]\d+)</string>
+      <key>name</key>
+      <string>entity.name.function.add.ldif</string>
+    </dict>
+  </array>
+  <key>scopeName</key>
+  <string>text.cerr</string>
+  <key>uuid</key>
+  <string>36e6fd74-4199-4259-96d1-933fb31b5fb3</string>
+</dict>
+</plist>
