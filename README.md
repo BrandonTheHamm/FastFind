@@ -49,7 +49,7 @@ Below is an example settings file
 	],
 	"FastFindSublime_ignore_folders":
 	[
-  ".git",
+                ".git",
 	],
 	"FastFindSublime_prompt_before_searching": false,
 	"FastFindSublime_executable": "rg",
