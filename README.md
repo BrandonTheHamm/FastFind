@@ -1,5 +1,5 @@
 # Fast Find
-A sublime plugin for wicket fast search/find in sublime project. 
+A sublime plugin for wicked fast search/find in sublime project. 
 
 ## Features
 * The plugin currently supports ripgrep (required ripgrep executabl, see ripgrep section below)
