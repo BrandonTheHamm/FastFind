@@ -4,6 +4,7 @@
 		"c",
 		"cpp",
 		"sh",
+		"txt",
 		"make"
 	],
 	"FastFindSublime_non_std_file_type_pattern":
@@ -15,6 +16,9 @@
 	],
 	"FastFindSublime_ignore_folders":
 	[
+		".git",
+		".cache",
+		"*build*",
 	],
 	"FastFindSublime_prompt_before_searching": false,
 	"FastFindSublime_executable": "rg",

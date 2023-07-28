@@ -8,9 +8,9 @@
 		"children":
 		[
 		{
-			"caption": "Look up symbol in halphy",
+			"caption": "Look up symbol",
 			"command": "fast_find",
-			"args": {"folder": "wlan_proc/wlan/halphy"}
+			"args": {"folder": "./"}
 		},
 		//Add new seach folders above this line and save file
 		//Use template below and replace <text> and <folder>

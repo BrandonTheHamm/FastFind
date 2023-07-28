@@ -90,21 +90,40 @@ class FastFindSublimeWorker(threading.Thread):
 
 	def make_fastfind_cmd(self, folder, word):
 		newline = getPlatformNewline()
-		before_context = get_setting("before_context")
-		after_context = get_setting("after_context")
+		fastfind_arg_list = ["rg"]
+		# fastfind_arg_list.append("--args")
+		fastfind_arg_list.append("-B"+str(get_setting("before_context")))
+		# before_context = get_setting("before_context")
+		# after_context = get_setting("after_context")
+		fastfind_arg_list.append("-A"+str(get_setting("after_context")))
+
 		std_file_types = get_setting("file_type_pattern")
+		for file_type in std_file_types:
+			fastfind_arg_list.append("-t"+file_type)
+
 		non_std_file_types = get_setting("non_std_file_type_pattern")
-		added_file_types = non_std_file_types
-		std_file_types = " ".join(['-t%s' % s for s in std_file_types])
-		non_std_file_types = " ".join(['--type-add "%s:*.%s"' % (s,s) for s in non_std_file_types])
-		added_file_types = " ".join(['-t%s' % s for s in added_file_types])
+		for file_type in non_std_file_types:
+			fastfind_arg_list.append("--type-add")
+			fastfind_arg_list.append("%s:*.%s" % (file_type, file_type))
+
+		for file_type in non_std_file_types:
+			fastfind_arg_list.append("-t"+file_type)
+
+		# added_file_types = non_std_file_types
+		# std_file_types = " ".join(['-t%s' % s for s in std_file_types])
+		# non_std_file_types = " ".join(['--type-add "%s:*.%s"' % (s,s) for s in non_std_file_types])
+		# added_file_types = " ".join(['-t%s' % s for s in added_file_types])
 		if not folder == "":
 			path = os.path.join(os.path.dirname(self.view.window().project_file_name()), folder)
-		context_before_text = "-B" + str(before_context)
-		context_after_text = "-A" + str(after_context)
-		fastfind_arg_list = " ".join([self.executable, context_before_text, context_after_text, non_std_file_types, std_file_types, added_file_types, "--column", word, path])
+		# context_before_text = "-B" + str(before_context)
+		# context_after_text = "-A" + str(after_context)
+		# fastfind_arg_list = " ".join([self.executable, context_before_text, context_after_text, non_std_file_types, std_file_types, added_file_types, "--column", word, path])
 
-		print(fastfind_arg_list)
+		fastfind_arg_list.append("--column")
+		fastfind_arg_list.append(word)
+		fastfind_arg_list.append(path)
+
+		print("make_fastfind_cmd: fastfind_arg_list = {fastfind_arg_list}")
 		popen_arg_list = {
 			"shell": False,
 			"stdout": subprocess.PIPE,
@@ -118,7 +137,9 @@ class FastFindSublimeWorker(threading.Thread):
 
 
 	def run_fastfind(self, folder, word):
+		print("fun_fastfind")
 		fastfind_arg_list, popen_arg_list = self.make_fastfind_cmd(folder, word)
+		# print(f"fast_find_arg_list: {fastfind_arg_list}")
 		try:
 			proc = subprocess.Popen(fastfind_arg_list, **popen_arg_list)
 		except OSError as e:
@@ -126,15 +147,17 @@ class FastFindSublimeWorker(threading.Thread):
 				sublime.error_message("FastFind ERROR: fastfind binary \"%s\" not found!" % self.executable)
 			else:
 				sublime.error_message("FastFind ERROR: %s failed!" % fastfind_arg_list)
+			print("FastFind: Exiting due to error")
+			return
 
 		output, erroroutput = proc.communicate()
 
-		# print erroroutput
+		print(erroroutput)
 		try:
 			output = str(output, encoding="utf8")
 		except TypeError:
 			output = unicode(str(output), encoding="utf8")
-		# print(output)
+		print(output)
 		return output
 
 	def process_results(self, results):
@@ -156,6 +179,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self.database = None
 		self.executable = None
 		self.root = None
+		print("FastFind __init__ called")
 
 
 	def update_status(self, workers, msgStr, showResults, count=0, dir=1):
@@ -197,6 +221,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 
 	def run(self, edit, folder):
 		self.folder = folder
+		print("FastFind: folder = {folder}")
 		self.executable = get_setting("executable")
 		if (self.folder == ""):
 			openViews = self.view.window().views()
