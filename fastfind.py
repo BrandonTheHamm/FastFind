@@ -5,6 +5,7 @@ import string
 import threading
 import errno
 
+#------------------------------------------------------------------------------
 FASTFIND_PLUGIN_DIR = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
 
 # Package Control on ST3 compresses the package into a single "package-name.sublime-package" file,
@@ -16,12 +17,15 @@ FASTFIND_CONTEXT_MENU = os.path.dirname(os.path.realpath(__file__)) + "/Context.
 FASTFIND_SETTINGS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/fastfind.sublime-settings"
 FASTFIND_SYNTAX_FILE = "Packages/" + FASTFIND_PLUGIN_DIR + "/FastFindResults.hidden-tmLanguage"
 
+
+#------------------------------------------------------------------------------
 def getPlatformNewline():
 	if sublime.platform == "windows":
 		return '\r\n'
 	else:
 		return '\n'
 
+#------------------------------------------------------------------------------
 def get_setting(key, default=None, view=None):
 		s = sublime.load_settings("fastfind.sublime-settings")
 		if view == None:
@@ -45,11 +49,11 @@ def get_setting(key, default=None, view=None):
 			sublime.error_message(error_string)
 
 
+#------------------------------------------------------------------------------
 class FastFindVisitor(sublime_plugin.TextCommand):
 	def __init__(self, view):
 		self.view = view
 
-	# def run(self, edit):
 	def run_(self, view, args):
 		for region in self.view.sel():
 			# Find anything looking like file in whole line at cursor
@@ -67,17 +71,18 @@ class FastFindVisitor(sublime_plugin.TextCommand):
 						# sublime.error_message("Unable to open file")
 
 
+#------------------------------------------------------------------------------
 def getEncodedPosition(file_name, line_num):
 	return file_name + ":" + str(line_num)
 
-
+#------------------------------------------------------------------------------
 def getCurrentPosition(view):
 	if view.file_name():
 		return getEncodedPosition( view.file_name(), view.rowcol( view.sel()[0].a )[0] + 1 )
 	else:
 		return None
 
-
+#------------------------------------------------------------------------------
 class FastFindSublimeWorker(threading.Thread):
 	def __init__(self, view, platform, root, symbol, folder, executable):
 		super(FastFindSublimeWorker, self).__init__()
@@ -132,14 +137,10 @@ class FastFindSublimeWorker(threading.Thread):
 		}
 		if (self.platform == "windows"):
 			popen_arg_list["creationflags"] = 0x08000000
-		# print(popen_arg_list)
 		return fastfind_arg_list, popen_arg_list
 
-
 	def run_fastfind(self, folder, word):
-		print("fun_fastfind")
 		fastfind_arg_list, popen_arg_list = self.make_fastfind_cmd(folder, word)
-		# print(f"fast_find_arg_list: {fastfind_arg_list}")
 		try:
 			proc = subprocess.Popen(fastfind_arg_list, **popen_arg_list)
 		except OSError as e:
@@ -157,7 +158,6 @@ class FastFindSublimeWorker(threading.Thread):
 			output = str(output, encoding="utf8")
 		except TypeError:
 			output = unicode(str(output), encoding="utf8")
-		print(output)
 		return output
 
 	def process_results(self, results):
@@ -167,10 +167,9 @@ class FastFindSublimeWorker(threading.Thread):
 
 	def run(self):
 			results = self.run_fastfind(self.folder, self.symbol)
-			# process_results(results)
 			self.output = results
 
-
+#------------------------------------------------------------------------------
 class FastFindCommand(sublime_plugin.TextCommand):
 	fastfind_output_info  = {}
 
@@ -180,7 +179,6 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self.executable = None
 		self.root = None
 		print("FastFind __init__ called")
-
 
 	def update_status(self, workers, msgStr, showResults, count=0, dir=1):
 		count = count + dir
@@ -203,7 +201,6 @@ class FastFindCommand(sublime_plugin.TextCommand):
 			if showResults:
 				for worker in workers:
 					self.display_results(worker.symbol, worker.output)
-
 
 	def display_results(self, symbol, output):
 		before_context = get_setting("before_context")
@@ -276,6 +273,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 			self.on_search_confirmed(symbol)
 
 	def on_search_confirmed(self, symbol):
+		print("Searching for symbol '%s'" % symbol)
 		worker = FastFindSublimeWorker(
 				view = self.view,
 				platform = sublime.platform(),
@@ -289,6 +287,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self.update_status(self.workers, symbol, True)
 
 
+#------------------------------------------------------------------------------
 class DisplayFastFindResultsCommand(sublime_plugin.TextCommand):
 	def run(self, edit):
 		last_pos = self.view.insert(edit, FastFindCommand.fastfind_output_info['pos'], FastFindCommand.fastfind_output_info['text'])

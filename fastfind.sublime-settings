@@ -22,7 +22,7 @@
 	],
 	"FastFindSublime_prompt_before_searching": false,
 	"FastFindSublime_executable": "rg",
-	"FastFindSublime_before_context":1,
-	"FastFindSublime_after_context":1,
+	"FastFindSublime_before_context":0,
+	"FastFindSublime_after_context":0,
 	"FastFindSublime_display_outline": true,
 }
