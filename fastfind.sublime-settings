@@ -1,18 +1,18 @@
 {
 	"FastFindSublime_file_type_pattern":
 	[
-		"c",
-		"cpp",
-		"sh",
-		"txt",
-		"make"
+		// "c",
+		// "cpp",
+		// "sh",
+		// "txt",
+		// "make"
 	],
 	"FastFindSublime_non_std_file_type_pattern":
 	[
-		"x",
-		"s",
-		"scons",
-		"api",
+		// "x",
+		// "s",
+		// "scons",
+		// "api",
 	],
 	"FastFindSublime_ignore_folders":
 	[

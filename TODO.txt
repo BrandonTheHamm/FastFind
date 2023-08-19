@@ -1,0 +1,4 @@
+| | when previewing search results, and then dismissing the search (esc), cursor/focus should return to last position
+| | sometimes get an index out-of-bounds error when # of search results is smalll
+| | allow for search results to be shown in the output window (instead of scratch window) 
+| | add preference (or command argument to allow for different keybind) to select whether search results should be shown in quick panel or the output panel

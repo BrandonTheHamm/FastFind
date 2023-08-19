@@ -1,9 +1,11 @@
-import sublime, sublime_plugin
+import sublime
 import os
 import subprocess
 import string
 import threading
 import errno
+from .typing import List, Optional
+from .structs import ResultLocation
 
 #------------------------------------------------------------------------------
 FASTFIND_PLUGIN_DIR = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -17,19 +19,12 @@ FASTFIND_CONTEXT_MENU = os.path.dirname(os.path.realpath(__file__)) + "/Context.
 FASTFIND_SETTINGS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/fastfind.sublime-settings"
 FASTFIND_SYNTAX_FILE = "Packages/" + FASTFIND_PLUGIN_DIR + "/FastFindResults.hidden-tmLanguage"
 
-
-#------------------------------------------------------------------------------
-def getPlatformNewline():
-	if sublime.platform == "windows":
-		return '\r\n'
-	else:
-		return '\n'
-
 #------------------------------------------------------------------------------
 def get_setting(key, default=None, view=None):
 		s = sublime.load_settings("fastfind.sublime-settings")
 		if view == None:
 			view = sublime.active_window().active_view()
+
 		if s.has("FastFindSublime_%s" % key):
 			return s.get("FastFindSublime_%s" % key)
 		else:
@@ -50,37 +45,17 @@ def get_setting(key, default=None, view=None):
 
 
 #------------------------------------------------------------------------------
-class FastFindVisitor(sublime_plugin.TextCommand):
-	def __init__(self, view):
-		self.view = view
-
-	def run_(self, view, args):
-		for region in self.view.sel():
-			# Find anything looking like file in whole line at cursor
-			if not region.empty():
-				break
-			match_line = self.view.substr(self.view.line(region))
-			lineDetails = match_line.split(":")
-			if lineDetails:
-				if len(lineDetails) >= 4:
-					filePath = lineDetails[0] + ":" + lineDetails[1]
-					fileRowCol = lineDetails[2] + ":" + lineDetails[3]
-					if(os.path.isfile(filePath)):
-						sublime.active_window().open_file(filePath + ":" + fileRowCol, sublime.ENCODED_POSITION)
-					# else:
-						# sublime.error_message("Unable to open file")
-
-
-#------------------------------------------------------------------------------
 def getEncodedPosition(file_name, line_num):
 	return file_name + ":" + str(line_num)
+
 
 #------------------------------------------------------------------------------
 def getCurrentPosition(view):
 	if view.file_name():
-		return getEncodedPosition( view.file_name(), view.rowcol( view.sel()[0].a )[0] + 1 )
+		return getEncodedPosition(view.file_name(), view.rowcol(view.sel()[0].a)[0] + 1)
 	else:
 		return None
+
 
 #------------------------------------------------------------------------------
 class FastFindSublimeWorker(threading.Thread):
@@ -92,54 +67,73 @@ class FastFindSublimeWorker(threading.Thread):
 		self.symbol = symbol
 		self.folder = folder
 		self.executable = executable
+		self.output = []
 
 	def make_fastfind_cmd(self, folder, word):
-		newline = getPlatformNewline()
+		#FIXME(BH): replace with search executable specified in user preferences
 		fastfind_arg_list = ["rg"]
-		# fastfind_arg_list.append("--args")
+
 		fastfind_arg_list.append("-B"+str(get_setting("before_context")))
-		# before_context = get_setting("before_context")
-		# after_context = get_setting("after_context")
 		fastfind_arg_list.append("-A"+str(get_setting("after_context")))
 
 		std_file_types = get_setting("file_type_pattern")
-		for file_type in std_file_types:
-			fastfind_arg_list.append("-t"+file_type)
+		if std_file_types is not None:
+			for file_type in std_file_types:
+				fastfind_arg_list.append("-t"+file_type)
 
 		non_std_file_types = get_setting("non_std_file_type_pattern")
-		for file_type in non_std_file_types:
-			fastfind_arg_list.append("--type-add")
-			fastfind_arg_list.append("%s:*.%s" % (file_type, file_type))
+		if non_std_file_types is not None:
+			for file_type in non_std_file_types:
+				fastfind_arg_list.append("--type-add")
+				fastfind_arg_list.append("%s:*.%s" % (file_type, file_type))
+			for file_type in non_std_file_types:
+				fastfind_arg_list.append("-t"+file_type)
 
-		for file_type in non_std_file_types:
-			fastfind_arg_list.append("-t"+file_type)
+		# search path defaults to the directory of currently opened file
+		# if a project is loaded, then use that project's directory as the search path
+		# if a folder is specified, append the folder name to the search path
+		
+		current_filename = self.view.file_name()
+		if current_filename is None or current_filename == "":
+			sublime.error_message("No open document! What are you trying to find???")
+			return None, None
 
-		# added_file_types = non_std_file_types
-		# std_file_types = " ".join(['-t%s' % s for s in std_file_types])
-		# non_std_file_types = " ".join(['--type-add "%s:*.%s"' % (s,s) for s in non_std_file_types])
-		# added_file_types = " ".join(['-t%s' % s for s in added_file_types])
-		if not folder == "":
-			path = os.path.join(os.path.dirname(self.view.window().project_file_name()), folder)
-		# context_before_text = "-B" + str(before_context)
-		# context_after_text = "-A" + str(after_context)
-		# fastfind_arg_list = " ".join([self.executable, context_before_text, context_after_text, non_std_file_types, std_file_types, added_file_types, "--column", word, path])
+		cwd = os.path.dirname(current_filename)
+		print("FastFind: Current File Directory = {0}".format(cwd))
+		path = cwd
+
+		# check to see if a project is currently loaded
+		project_filename = self.view.window().project_file_name()
+		if project_filename is not None and project_filename != "":
+			# use this project's directory as the base search path
+			path = os.path.dirname(self.view.window().project_file_name())
+			print("FastFind: Using project directory: {0}".format(path))
+		else:
+			print("FastFind: No project currently loaded")
+
+		if folder != "":
+			path = os.path.join(path, folder)
+
+		print("FastFind: Search path is '{0}'".format(path))
 
 		fastfind_arg_list.append("--column")
 		fastfind_arg_list.append(word)
 		fastfind_arg_list.append(path)
 
-		print("make_fastfind_cmd: fastfind_arg_list = {fastfind_arg_list}")
+		print("FastFind: make_fastfind_cmd: fastfind_arg_list = {0}".format(fastfind_arg_list))
 		popen_arg_list = {
 			"shell": False,
 			"stdout": subprocess.PIPE,
 			"stderr": subprocess.PIPE,
 			"cwd": self.root
 		}
-		if (self.platform == "windows"):
+
+		if self.platform == "windows":
 			popen_arg_list["creationflags"] = 0x08000000
+
 		return fastfind_arg_list, popen_arg_list
 
-	def run_fastfind(self, folder, word):
+	def run_fastfind(self, folder: str, word: str) -> str:
 		fastfind_arg_list, popen_arg_list = self.make_fastfind_cmd(folder, word)
 		try:
 			proc = subprocess.Popen(fastfind_arg_list, **popen_arg_list)
@@ -149,25 +143,72 @@ class FastFindSublimeWorker(threading.Thread):
 			else:
 				sublime.error_message("FastFind ERROR: %s failed!" % fastfind_arg_list)
 			print("FastFind: Exiting due to error")
-			return
+			return ""
 
 		output, erroroutput = proc.communicate()
 
-		print(erroroutput)
+		if erroroutput is not None and erroroutput != "":
+			print("FastFind: erroroutput = '{0}'".format(erroroutput))
+
 		try:
 			output = str(output, encoding="utf8")
 		except TypeError:
 			output = unicode(str(output), encoding="utf8")
+
+		print("FastFind: output = {0}".format(output))
 		return output
 
 	def process_results(self, results):
 		for line in results:
 			print(line)
 
-
-	def run(self):
+	def run(self) -> None:
 			results = self.run_fastfind(self.folder, self.symbol)
-			self.output = results
+			search_result_locations = parse_search_results(results)
+			self.output = search_result_locations
+
+
+#------------------------------------------------------------------------------
+def parse_search_results(content: str) -> List[ResultLocation]:
+	result_list = []
+	for line in content.split(os.linesep):
+		# print("search result line: '%s'" % line)
+		# split on tab character?
+		
+		# line = line.strip()
+		if line != "":
+			# NOTE(BH): ripgrep separates the location and the found content by two tab chars
+			# print("Line: '%s'" % line)
+			parts = line.split(':\t\t')
+			if len(parts) >= 2:
+				# print("\tfilename: '%s'" % parts[0])
+				# print("\tresult content: '%s'" % parts[1])
+				# filename location is in the form
+				# 	<filename>:<line>:<char>
+				# On Windows the filename can(will?) have a colon in its filename
+				# so we can't split on the colon character. We do a backward search on the 
+				# string until we have two colons found, then stop
+				char_pos = 0,
+				line_num = 0
+				filename = ""
+				location_string = parts[0]
+				# print("location: '%s'"%location_string)
+				index = location_string.rfind(':', 0)
+				# print("  index = %d" % int(index))
+				char_pos = location_string[index+1:]
+				# print("char_pos: '%s'"%char_pos)
+				location_string = location_string[:index]
+				index = location_string.rfind(':', 0)
+				line_num = location_string[index+1:]
+				# print("line_num: '%s'"%line_num)
+				filename = location_string[:index]
+				# print("filename: '%s'"%filename)
+				result_list.append(ResultLocation(filename, int(line_num), int(char_pos)))
+
+	# for result in result_list:
+		# print("Result:\n\tfilename:\t%s\n\tline:\t%d\n\tcharpos:\t%d\n" % (result.filename, result.line_number, result.charpos))
+	return result_list
+
 
 #------------------------------------------------------------------------------
 class FastFindCommand(sublime_plugin.TextCommand):
@@ -178,9 +219,10 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self.database = None
 		self.executable = None
 		self.root = None
-		print("FastFind __init__ called")
+		self.find_results = []
+		print("FastFind: Plugin Loaded")
 
-	def update_status(self, workers, msgStr, showResults, count=0, dir=1):
+	def _update_status(self, workers: List[FastFindSublimeWorker], msgStr: str, show_results: bool, count=0, dir=1) -> None:
 		count = count + dir
 		found = False
 
@@ -191,18 +233,51 @@ class FastFindCommand(sublime_plugin.TextCommand):
 					dir = -1
 				elif count == 0:
 					dir = 1
-				sublime.status_message("FastFinding '%s' [%s=%s]" %	(msgStr, ' ' * count, ' ' * (7 - count)))
-				sublime.set_timeout(lambda: self.update_status(workers, msgStr, showResults, count, dir), 100)
+				print("FastFinding '%s' [%s=%s]" %(msgStr, ' ' * count, ' ' * (7 - count)))
+				sublime.set_timeout(lambda: self._update_status(workers, msgStr, show_results, count, dir), 100)
 				break
 
 		if not found:
 			self.view.erase_status("FastFindSublime")
 			output = ""
-			if showResults:
+			if show_results:
 				for worker in workers:
-					self.display_results(worker.symbol, worker.output)
+					for result in worker.output:
+						self.find_results.append(result)
+					# self._display_results_scratch_window(worker.symbol, worker.output)
+					self._display_results_in_jump_list(worker.symbol, worker.output)
 
-	def display_results(self, symbol, output):
+	def _select_entry(self, index: int) -> None:
+		selected_entry = self.find_results[index]
+		print("_select_entry %d: %s:%d:%d" % (index, selected_entry.filename, selected_entry.line_number, selected_entry.charpos))
+
+	def _highlight_entry(self, index: int) -> None:
+		highlighted_result = self.find_results[index]
+		print("_highlight_entry %d : %s:%d:%d" % (index, highlighted_result.filename, highlighted_result.line_number, highlighted_result.charpos))
+		view = self._open_basic_file(highlighted_result.filename, 
+			highlighted_result.line_number,
+			highlighted_result.charpos,
+			True)
+		self.view.window().focus_view(view)
+
+	def _display_results_in_jump_list(self, symbol: str, locations: List[ResultLocation]):
+		self.find_results = locations
+		window = self.view.window()
+
+		items = []
+		for location in locations:
+			items.append(sublime.QuickPanelItem(location.filename,
+				annotation="FastFind"))
+
+		window.show_quick_panel(items=items,
+			on_select=self._select_entry,
+			on_highlight=self._highlight_entry, 
+			flags=sublime.KEEP_OPEN_ON_FOCUS_LOST, 
+			# selected_index=-1,
+			placeholder="FastFind Results for '{0}'".format(symbol)
+			)
+
+	def _display_results_scratch_window(self, symbol: str, output: str):
 		before_context = get_setting("before_context")
 		after_context = get_setting("after_context")
 		FastFind_view = self.view.window().new_file()
@@ -216,11 +291,26 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		FastFind_view.set_syntax_file(FASTFIND_SYNTAX_FILE)
 		FastFind_view.set_read_only(True)
 
+	def _open_basic_file(self, 
+		filename: str, 
+		line_number: int, 
+		char_index: int, 
+		preview_only: bool) -> Optional[sublime.View]:
+		window = self.view.window()
+		flags = sublime.ENCODED_POSITION
+		if preview_only:
+			flags |= sublime.TRANSIENT
+		encoded_filename = "{0}:{1}:{2}".format(filename, line_number, char_index)
+		view = window.open_file(fname=encoded_filename,group=-1, flags=flags)
+		return view
+
+
 	def run(self, edit, folder):
 		self.folder = folder
-		print("FastFind: folder = {folder}")
+		print("FastFind: folder = {0}".format(folder))
 		self.executable = get_setting("executable")
-		if (self.folder == ""):
+		
+		if self.folder == "":
 			openViews = self.view.window().views()
 			for view in openViews:
 				if view.is_scratch():
@@ -229,29 +319,25 @@ class FastFindCommand(sublime_plugin.TextCommand):
 						self.view.window().focus_view(view)
 						self.view.window().run_command("close_file")
 			return
-		if (self.folder == "__new__"):
+		
+		if self.folder == "__new__":
 			fast_find_menu = os.path.join(FASTFIND_CONTEXT_MENU)
 			if os.path.exists(fast_find_menu):
 				self.view.window().open_file(fast_find_menu)
 			else:
 				sublime.error_message("Context.sublime-menu not found at\n%s" % fast_find_menu)
 			return
-		if(self.folder == "__settings__"):
+
+		if self.folder == "__settings__":
 			fast_find_settings = os.path.join(FASTFIND_SETTINGS_FILE)
 			if os.path.exists(fast_find_settings):
 				self.view.window().open_file(fast_find_settings)
 			else:
 				sublime.error_message("fastfind.sublime-settings not found at\n%s" % fast_find_settings)
 			return
-		if not self.view.file_name():
-			sublime.error_message("No sublime project is open")
-			return
-
-		if not self.view.window().project_file_name() != None:
-			sublime.error_message("No sublime project is open")
-			return
 
 		cur_pos = getCurrentPosition(self.view)
+		print("FastFind: Current Position: {0}".format(cur_pos))
 
 		# Search for the first word that is selected. While Sublime Text uses
 		# multiple selections, we only want the first selection since simultaneous
@@ -267,33 +353,22 @@ class FastFindCommand(sublime_plugin.TextCommand):
 			symbol = self.view.substr(self.view.word(one))
 		else: #soemthing is selected, so use the selection
 			symbol = self.view.substr(first_selection)
-		if get_setting("prompt_before_searching") == True:
-			print("Not supported yet")
-		else:
-			self.on_search_confirmed(symbol)
 
-	def on_search_confirmed(self, symbol):
-		print("Searching for symbol '%s'" % symbol)
+		if get_setting("prompt_before_searching") == True:
+			print("FastFind: 'prompt_before_searching' not supported yet")
+		else:
+			self._on_search_confirmed(symbol)
+
+	def _on_search_confirmed(self, symbol):
+		print("FastFind: Searching for symbol '%s'" % symbol)
 		worker = FastFindSublimeWorker(
 				view = self.view,
 				platform = sublime.platform(),
 				root = self.root,
 				symbol = symbol,
 				folder = self.folder,
-				executable = self.executable
-			)
+				executable = self.executable)
 		worker.start()
 		self.workers.append(worker)
-		self.update_status(self.workers, symbol, True)
+		self._update_status(self.workers, symbol, True)
 
-
-#------------------------------------------------------------------------------
-class DisplayFastFindResultsCommand(sublime_plugin.TextCommand):
-	def run(self, edit):
-		last_pos = self.view.insert(edit, FastFindCommand.fastfind_output_info['pos'], FastFindCommand.fastfind_output_info['text'])
-		symbol_regions = self.view.find_all(FastFindCommand.fastfind_output_info['symbol'], sublime.LITERAL)
-		if get_setting("display_outline"):
-			self.view.add_regions('FastFindsublime-outlines', symbol_regions[1:], "text.find-in-files", "dot", sublime.DRAW_EMPTY_AS_OVERWRITE)
-		else:
-			self.view.add_regions('FastFindsublime-outlines', symbol_regions[1:], "text.find-in-files", "dot", sublime.HIDDEN)
-		self.view.insert(edit, 0, "Found %s hit(s) for " % len(self.view.get_regions('FastFindsublime-outlines')))
