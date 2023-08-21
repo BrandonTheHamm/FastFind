@@ -1,11 +1,12 @@
-import sublime
+import sublime, sublime_plugin
 import os
 import subprocess
 # import string
 import threading
 import errno
+import json
 from .typing import List, Optional
-from .structs import ResultLocation
+from .structs import FastFindResult, ResultLocation
 
 #------------------------------------------------------------------------------
 FASTFIND_PLUGIN_DIR = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -59,6 +60,7 @@ class FastFindSublimeWorker(threading.Thread):
 	def make_fastfind_cmd(self, folder, word):
 		#FIXME(BH): replace with search executable specified in user preferences
 		fastfind_arg_list = ["rg"]
+		fastfind_arg_list.append("--json")
 
 		fastfind_arg_list.append("-B"+str(get_setting("before_context")))
 		fastfind_arg_list.append("-A"+str(get_setting("after_context")))
@@ -151,37 +153,29 @@ class FastFindSublimeWorker(threading.Thread):
 
 	def run(self) -> None:
 			results = self.run_fastfind(self._folder, self._symbol)
-			search_result_locations = parse_search_results(results)
+			search_result_locations = parse_search_results_from_json(results)
 			self._output = search_result_locations
 
-
 #------------------------------------------------------------------------------
-def parse_search_results(content: str) -> List[ResultLocation]:
-	result_list = []
+def parse_search_results_from_json(content: str) -> List[FastFindResult]:
+	results = []
 	for line in content.split(os.linesep):
-		if line != "":
-			# NOTE(BH): ripgrep separates the location and the found content by two tab chars
-			parts = line.split(':\t\t')
-			if len(parts) >= 2:
-				# filename location is in the form
-				# 	<filename>:<line>:<char>:
-				# On Windows the filename will have a colon in its filename
-				# so we can't split on the colon character. We do a backward search on the 
-				# string until we have two colons found, then stop
-				char_pos = 0,
-				line_num = 0
-				filename = ""
-				location_string = parts[0]
-				index = location_string.rfind(':', 0)
-				char_pos = location_string[index+1:]
-				location_string = location_string[:index]
-				index = location_string.rfind(':', 0)
-				line_num = location_string[index+1:]
-				filename = location_string[:index]
-				result_list.append(ResultLocation(filename, int(line_num), int(char_pos)))
+		# print("\n\nline:\n\n{0}\n\n".format(line))
+		line = line.strip()
+		if line == "":
+			# print("blank line...skipping")
+			continue
+		json_result = json.loads(line)
+		# print("json_result: ", json_result)
 
-	return result_list
-
+		if json_result['type'] == 'match':
+			# print("found match type")
+			find_result = FastFindResult.from_json(json_result['data'])
+			if find_result != None:
+				# print(find_result.to_string())
+				results.append(find_result)
+	return results
+	
 
 #------------------------------------------------------------------------------
 class FastFindCommand(sublime_plugin.TextCommand):
@@ -222,7 +216,9 @@ class FastFindCommand(sublime_plugin.TextCommand):
 					self._display_results_in_jump_list(worker._symbol, worker._output)
 
 	def _select_entry(self, index: int) -> None:
+		# print("_select_entry called with index = {0}".format(index))
 		if index < 0:
+			# return
 			print("cancelled navigation - return to previous position")
 			# cancelled, return to saved position
 			self.view.window().focus_view(self.view)
@@ -230,28 +226,30 @@ class FastFindCommand(sublime_plugin.TextCommand):
 			self.view.sel().add(self._current_position)
 			self.view.set_viewport_position(self._saved_viewport_pos, animate=True)
 		else:
+			print("skipping...for index = {0}".format(index))
 			selected_entry = self._find_results[index]
-			print("_select_entry %d: %s:%d:%d" % (index, selected_entry.filename, selected_entry.line_number, selected_entry.charpos))
+			print("_select_entry %d: %s:%d:%d" % (index, selected_entry.filename, selected_entry.line_number, selected_entry.start_char_index))
 			view = self._open_basic_file(selected_entry.filename,
 				selected_entry.line_number,
-				selected_entry.charpos,
+				selected_entry.start_char_index,
 				False)
 			self.view.window().focus_view(view)
 		
 
 	def _highlight_entry(self, index: int) -> None:
+		print("_highlight_entry called with index = {0}".format(index))
 		highlighted_result = self._find_results[index]
-		print("_highlight_entry %d : %s:%d:%d" % (index, highlighted_result.filename, highlighted_result.line_number, highlighted_result.charpos))
+		print("_highlight_entry %d : %s:%d:%d" % (index, highlighted_result.filename, highlighted_result.line_number, highlighted_result.start_char_index))
 		preview = self._open_basic_file(highlighted_result.filename, 
 			highlighted_result.line_number,
-			highlighted_result.charpos,
+			highlighted_result.start_char_index,
 			True)
-		result_location = preview.text_point(highlighted_result.line_number-1, highlighted_result.charpos-1)
-		result_region = preview.word(result_location)
+		result_location = preview.text_point(highlighted_result.line_number-1, highlighted_result.start_char_index-1)
+		result_region = sublime.Region(result_location, result_location+highlighted_result.match_length)
 		preview.sel().clear()
 		preview.sel().add(result_region)
 
-	def _display_results_in_jump_list(self, symbol: str, locations: List[ResultLocation]):
+	def _display_results_in_jump_list(self, symbol: str, locations: List[FastFindResult]):
 		self._find_results = locations
 		window = self.view.window()
 
@@ -261,6 +259,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 				"{0}:{1}".format(os.path.basename(location.filename), location.line_number),
 				annotation="FastFind"))
 
+		print("_display_results: num items = {0}".format(len(items)))
 		window.show_quick_panel(items=items,
 			on_select=self._select_entry,
 			on_highlight=self._highlight_entry, 
