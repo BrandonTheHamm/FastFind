@@ -55,7 +55,7 @@ class FastFindResult:
 	@staticmethod
 	def from_json(json_content):
 		start_pos = int(json_content['submatches'][0]['start'])
-		match_len = int(json_content['submatches'][0]['end']) - start_pos + 1
+		match_len = int(json_content['submatches'][0]['end']) - start_pos
 		return FastFindResult(json_content['path']['text'],
 			int(json_content['line_number']),
 			start_pos,
@@ -242,7 +242,6 @@ class FastFindCommand(sublime_plugin.TextCommand):
 	def _select_entry(self, index: int) -> None:
 		# print("_select_entry called with index = {0}".format(index))
 		if index < 0:
-			# return
 			print("FastFind: cancelled navigation - return to previous position")
 			# cancelled, return to saved position
 			self.view.window().focus_view(self.view)
@@ -255,7 +254,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 			# print("_select_entry %d: %s:%d:%d" % (index, selected_entry.filename, selected_entry.line_number, selected_entry.start_char_index))
 			view = self._open_basic_file(selected_entry.filename,
 				selected_entry.line_number,
-				selected_entry.start_char_index,
+				selected_entry.start_char_index+1,
 				False)
 			self.view.window().focus_view(view)
 		
@@ -268,9 +267,8 @@ class FastFindCommand(sublime_plugin.TextCommand):
 			highlighted_result.line_number,
 			highlighted_result.start_char_index,
 			True)
-		result_location = preview.text_point(highlighted_result.line_number-1, highlighted_result.start_char_index-1)
+		result_location = preview.text_point(highlighted_result.line_number-1, highlighted_result.start_char_index)
 		result_region = sublime.Region(result_location, result_location+highlighted_result.match_length)
-		preview.sel().clear()
 		preview.sel().add(result_region)
 
 	def _display_results_in_jump_list(self, symbol: str, locations: List[FastFindResult]):
