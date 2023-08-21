@@ -3,4 +3,5 @@
 [ ] Allow for search results to be shown in the output window (instead of scratch window) 
 [ ] Add preference (or command argument to allow for different keybind) to select whether search results should be shown in quick panel or the output panel
 [X] Highlight found result when previewing search results
+[ ] Update documentation/README
 
