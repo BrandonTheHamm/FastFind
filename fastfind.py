@@ -1,11 +1,9 @@
 import sublime, sublime_plugin
 import os
 import subprocess
-# import string
 import threading
 import errno
 import json
-from .typing import List, Optional
 
 #------------------------------------------------------------------------------
 FASTFIND_PLUGIN_DIR = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -181,7 +179,7 @@ class FastFindSublimeWorker(threading.Thread):
 			self._output = search_result_locations
 
 #------------------------------------------------------------------------------
-def parse_search_results_from_json(content: str) -> List[FastFindResult]:
+def parse_search_results_from_json(content: str) -> list:
 	results = []
 	# NOTE(BH): Ripgrep splits json results using Unix line-endings, so even on Windows,
 	# we need split the results on the Unix line termination character and not use os.linesep
@@ -216,7 +214,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self._saved_viewport_pos = None
 		print("FastFind: Plugin Loaded")
 
-	def _update_status(self, workers: List[FastFindSublimeWorker], msgStr: str, show_results: bool, count: int = 0, dir: int = 1) -> None:
+	def _update_status(self, workers: list, msgStr: str, show_results: bool, count: int = 0, dir: int = 1) -> None:
 		count = count + dir
 		found = False
 
@@ -271,7 +269,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		result_region = sublime.Region(result_location, result_location+highlighted_result.match_length)
 		preview.sel().add(result_region)
 
-	def _display_results_in_jump_list(self, symbol: str, locations: List[FastFindResult]):
+	def _display_results_in_jump_list(self, symbol: str, locations: list):
 		self._find_results = locations
 		window = self.view.window()
 

@@ -12,8 +12,8 @@ A sublime plugin for wicked fast search/find in sublime project.
 
 ## Requirement
 * Ripgrep executable
-* Sublime Text 3 +
-* Not tested in Sublime Text 2
+* Sublime Text 4 +
+* Not tested in Sublime Text <= 3
 
 ## Installation
 * Clone the repo or download zip
