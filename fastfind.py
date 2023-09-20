@@ -199,7 +199,12 @@ def parse_search_results_from_json(content: str) -> list:
 				# print(find_result.to_string())
 				results.append(find_result)
 	return results
-	
+
+
+#------------------------------------------------------------------------------
+class SearchTermInputHandler(sublime_plugin.TextInputHandler):
+	def placeholder(self):
+		return "Search Term"
 
 #------------------------------------------------------------------------------
 class FastFindCommand(sublime_plugin.TextCommand):
@@ -326,7 +331,11 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self.workers.append(worker)
 		self._update_status(self.workers, symbol, True)
 
-	def run(self, _, folder):
+	def input(self, args):
+		if "search_term" not in args:
+			return SearchTermInputHandler()
+
+	def run(self, _, folder, search_term):
 		self._folder = folder
 		self._current_position = self.view.sel()[0]
 		self._saved_viewport_pos = self.view.viewport_position()
@@ -358,23 +367,5 @@ class FastFindCommand(sublime_plugin.TextCommand):
 				sublime.error_message("fastfind.sublime-settings not found at\n%s" % fast_find_settings)
 			return
 
-		# Search for the first word that is selected. While Sublime Text uses
-		# multiple selections, we only want the first selection since simultaneous
-		# multiple fastfind lookups are not supported
-		first_selection = self.view.sel()[0]
-		one = first_selection.a
-		two = first_selection.b
-
-		self.view.sel().add(sublime.Region(one, two))
 		self.workers = []
-
-		if one == two: #nothing selected, cursor is just at a word, so select full word
-			symbol = self.view.substr(self.view.word(one))
-		else: #something is selected, so use the selection
-			symbol = self.view.substr(first_selection)
-
-		if get_setting("prompt_before_searching") == True:
-			print("FastFind: 'prompt_before_searching' not supported yet")
-		else:
-			self._on_search_confirmed(symbol)
-
+		self._on_search_confirmed(search_term)

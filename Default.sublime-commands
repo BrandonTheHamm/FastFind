@@ -1,0 +1,6 @@
+[
+	{
+		"caption": "Enter search term",
+		"command": "fast_find",
+	},
+]
