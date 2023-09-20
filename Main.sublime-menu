@@ -1,0 +1,12 @@
+[
+	{
+		"id": "find",
+		"children": [
+			{
+				"command": "fast_find",
+				"args": { "folder": "./" },
+				"caption": "Fast Find Using Ripgrep",
+			}
+		]
+	}
+]

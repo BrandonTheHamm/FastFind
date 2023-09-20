@@ -1,7 +1,7 @@
 [X] When previewing search results, and then dismissing the search (esc), cursor/focus should return to last position
 [X] BUG: Sometimes get an index out-of-bounds error when # of search results is small
-[ ] Allow for search results to be shown in the output window (instead of scratch window) 
 [ ] Add preference (or command argument to allow for different keybind) to select whether search results should be shown in quick panel or the output panel
 [X] Highlight found result when previewing search results
 [ ] Update documentation/README
+[ ] Add input handler for search folder so that it doesn't have to passed as an argument and we can prompt the user for it
 
