@@ -4,43 +4,7 @@
 		"id": "FastFind"
 	},
 	{
-		"caption": "Fast Find",
-		"children":
-		[
-		{
-			"caption": "Look up symbol",
-			"command": "fast_find",
-			"args": {"folder": "./"}
-		},
-		//Add new seach folders above this line and save file
-		//Use template below and replace <text> and <folder>
-		//with new location (see above for examples)
-		//
-		// {
-		// 	"caption": "RG: Look up symbol in <Text>",
-		// 	"command": "fast_find",
-		// 	"args": {"folder": "<folder>"}
-		// },
-		{
-			"caption": "-",
-			"id": "separator"
-		},
-		{
-			"caption": "Add new search location",
-			"command": "fast_find",
-			"args": {"folder": "__new__"}
-		},
-		{
-			"caption": "Settings",
-			"command": "fast_find",
-			"args": {"folder": "__settings__"}
-
-		},
-		{
-			"caption": "Close all FastFind Tabs",
-			"command": "fast_find",
-			"args": {"folder": ""}
-		},
-		]
+		"caption": "(FastFind) Search using Ripgrep",
+		"command": "fast_find"
 	}
 ]

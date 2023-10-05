@@ -80,6 +80,10 @@ class FastFindSublimeWorker(threading.Thread):
 		self._output = []
 
 	def make_fastfind_cmd(self, folder, word):
+		if folder is None or folder == "":
+			sublime.error_message("No search path specified!")
+			return ([], [])
+
 		#FIXME(BH): replace with search executable specified in user preferences
 		fastfind_arg_list = ["rg"]
 		fastfind_arg_list.append("--json")
@@ -100,31 +104,7 @@ class FastFindSublimeWorker(threading.Thread):
 			for file_type in non_std_file_types:
 				fastfind_arg_list.append("-t"+file_type)
 
-		# search path defaults to the directory of currently opened file
-		# if a project is loaded, then use that project's directory as the search path
-		# if a folder is specified, append the folder name to the search path
-		
-		current_filename = self._view.file_name()
-		if current_filename is None or current_filename == "":
-			sublime.error_message("No open document! What are you trying to find???")
-			return None, None
-
-		cwd = os.path.dirname(current_filename)
-		# print("FastFind: Current File Directory = {0}".format(cwd))
-		path = cwd
-
-		# check to see if a project is currently loaded
-		project_filename = self._view.window().project_file_name()
-		if project_filename is not None and project_filename != "":
-			# use this project's directory as the base search path
-			path = os.path.dirname(self._view.window().project_file_name())
-		# 	print("FastFind: Using project directory: {0}".format(path))
-		# else:
-		# 	print("FastFind: No project currently loaded")
-
-		if folder != "":
-			path = os.path.join(path, folder)
-
+		path = folder
 		print("FastFind: Search path is '{0}'".format(path))
 
 		fastfind_arg_list.append("--column")
@@ -158,8 +138,8 @@ class FastFindSublimeWorker(threading.Thread):
 
 		output, erroroutput = proc.communicate()
 
-		if erroroutput is not None and erroroutput.strip() != "":
-			print("FastFind: erroroutput = '{0}'".format(erroroutput))
+		# if erroroutput is not None and erroroutput.strip() != "":
+		# 	print("FastFind: erroroutput = '{0}'".format(erroroutput))
 
 		try:
 			output = str(output, encoding="utf8")
@@ -174,9 +154,9 @@ class FastFindSublimeWorker(threading.Thread):
 			print(line)
 
 	def run(self) -> None:
-			results = self.run_fastfind(self._folder, self._symbol)
-			search_result_locations = parse_search_results_from_json(results)
-			self._output = search_result_locations
+		results = self.run_fastfind(self._folder, self._symbol)
+		search_result_locations = parse_search_results_from_json(results)
+		self._output = search_result_locations
 
 #------------------------------------------------------------------------------
 def parse_search_results_from_json(content: str) -> list:
@@ -206,17 +186,79 @@ class SearchTermInputHandler(sublime_plugin.TextInputHandler):
 	def placeholder(self):
 		return "Search Term"
 
+	def initial_text(self):
+		if sublime.active_window() is not None:
+			if sublime.active_window().active_view() is not None:
+				view = sublime.active_window().active_view()
+				first_sel = view.sel()[0]
+				left = first_sel.a
+				right = first_sel.b
+				view.sel().add(sublime.Region(left, right))
+
+				search_term = ""
+
+				if left == right:
+					search_term = view.substr(view.word(left))
+				else:
+					search_term = view.substr(first_sel)
+				return search_term
+		return ""
+
+	def description(self, text):
+		return "Enter a search term"
+
+
+#------------------------------------------------------------------------------
+class FolderInputHandler(sublime_plugin.TextInputHandler):
+	def placeholder(self):
+		return "Search Path"
+
+	def initial_text(self):
+		# Prefer to use the current project directory as the search path 
+		if sublime.active_window().project_file_name() is not None:
+			proj_file = sublime.active_window().project_file_name()
+			print("FastFind: Loaded Project File: ",proj_file)
+			folder_path = os.path.dirname(os.path.realpath(proj_file))
+			return folder_path
+		elif len(sublime.active_window().folders()) > 0:
+			# if no project is open, but folders are open, then use the first folder path as the 
+			# search path
+			folder_path = sublime.active_window().folders()[0]
+			print("FastFind: Loaded folder_path: ",folder_path)
+			return folder_path
+		else:
+			view = sublime.active_window().active_view()
+			if view is not None:
+				filename = view.buffer().file_name()
+				if filename is not None:
+					folder_path = os.path.dirname(os.path.realpath(filename))
+					print("FastFind: Path of currently open file: ",folder_path)
+					return folder_path
+		return "enter a search path"
+
+
+	def description(self, text):
+		return "FastFind Search Path"
+
+
 #------------------------------------------------------------------------------
 class FastFindCommand(sublime_plugin.TextCommand):
 	fastfind_output_info  = {}
 
 	def __init__(self, view: sublime.View):
 		self.view = view
+		if view is None:
+			print("No view opened - using active window instead")
+			self.view = sublime.active_window().view()
+			if self.view is None:
+				print("WHAT? Still no view???")
+
 		self._executable = None
 		self._root = None
 		self._find_results = []
 		self._current_position = None
 		self._saved_viewport_pos = None
+		self._folder = None
 		print("FastFind: Plugin Loaded")
 
 	def _update_status(self, workers: list, msgStr: str, show_results: bool, count: int = 0, dir: int = 1) -> None:
@@ -247,7 +289,16 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		if index < 0:
 			print("FastFind: cancelled navigation - return to previous position")
 			# cancelled, return to saved position
-			self.view.window().focus_view(self.view)
+			if self.view is None:
+				self.view = sublime.active_window().view()
+				if self.view is None:
+					print("view is still none!!")
+
+			if self.view.window() is None:
+				sublime.active_window().focus_view(self.view)
+			else:
+				self.view.window().focus_view(self.view)
+
 			self.view.sel().clear()
 			self.view.sel().add(self._current_position)
 			self.view.set_viewport_position(self._saved_viewport_pos, animate=True)
@@ -259,7 +310,8 @@ class FastFindCommand(sublime_plugin.TextCommand):
 				selected_entry.line_number,
 				selected_entry.start_char_index+1,
 				False)
-			self.view.window().focus_view(view)
+			sublime.active_window().focus_view(view)
+			# self.view.window().focus_view(view)
 		
 
 	def _highlight_entry(self, index: int) -> None:
@@ -310,7 +362,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		line_number: int, 
 		char_index: int, 
 		preview_only: bool) -> sublime.View:
-		window = self.view.window()
+		window = sublime.active_window()
 		flags = sublime.ENCODED_POSITION
 		if preview_only:
 			flags |= sublime.TRANSIENT
@@ -319,7 +371,7 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		return view
 
 	def _on_search_confirmed(self, symbol):
-		print("FastFind: Searching for symbol '%s'" % symbol)
+		print("FastFind: Searching for symbol '%s' in path '%s'" % (symbol, self._folder))
 		worker = FastFindSublimeWorker(
 				view = self.view,
 				platform = sublime.platform(),
@@ -333,39 +385,25 @@ class FastFindCommand(sublime_plugin.TextCommand):
 
 	def input(self, args):
 		if "search_term" not in args:
+			# print("search_term not found in args")
 			return SearchTermInputHandler()
+		if "folder" not in args:
+			# print("folder not found in args")
+			return FolderInputHandler()
 
 	def run(self, _, folder, search_term):
-		self._folder = folder
-		self._current_position = self.view.sel()[0]
-		self._saved_viewport_pos = self.view.viewport_position()
-		self._executable = get_setting("executable")
-		
-		if self._folder == "":
-			openViews = self.view.window().views()
-			for view in openViews:
-				if view.is_scratch():
-					if "FastFind results - " in view.name():
-						#found a FastFind tab, close it
-						self.view.window().focus_view(view)
-						self.view.window().run_command("close_file")
-			return
-		
-		if self._folder == "__new__":
-			fast_find_menu = os.path.join(FASTFIND_CONTEXT_MENU)
-			if os.path.exists(fast_find_menu):
-				self.view.window().open_file(fast_find_menu)
-			else:
-				sublime.error_message("Context.sublime-menu not found at\n%s" % fast_find_menu)
-			return
+		self._folder = os.path.expandvars(folder)
+		# print("FastFind search path: ",self._folder)
+		# print("FastFind search term: ",search_term)
 
-		if self._folder == "__settings__":
-			fast_find_settings = os.path.join(FASTFIND_SETTINGS_FILE)
-			if os.path.exists(fast_find_settings):
-				self.view.window().open_file(fast_find_settings)
-			else:
-				sublime.error_message("fastfind.sublime-settings not found at\n%s" % fast_find_settings)
-			return
+		if self.view is not None:
+			self._current_position = self.view.sel()[0]
+			self._saved_viewport_pos = self.view.viewport_position()
+		else:
+			self._current_position = None
+			self._saved_viewport_pos = None
+
+		self._executable = get_setting("executable")
 
 		self.workers = []
 		self._on_search_confirmed(search_term)
