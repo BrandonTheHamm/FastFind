@@ -69,7 +69,7 @@ class FastFindResult:
 
 #------------------------------------------------------------------------------
 class FastFindSublimeWorker(threading.Thread):
-	def __init__(self, view, platform, root, symbol, folder, executable):
+	def __init__(self, view, platform, root, symbol, folder, executable, case_sensitive):
 		super(FastFindSublimeWorker, self).__init__()
 		self._view = view
 		self._platform = platform
@@ -78,6 +78,7 @@ class FastFindSublimeWorker(threading.Thread):
 		self._folder = folder
 		self._executable = executable
 		self._output = []
+		self._case_sensitive = case_sensitive
 
 	def make_fastfind_cmd(self, folder, word):
 		if folder is None or folder == "":
@@ -87,6 +88,9 @@ class FastFindSublimeWorker(threading.Thread):
 		#FIXME(BH): replace with search executable specified in user preferences
 		fastfind_arg_list = ["rg"]
 		fastfind_arg_list.append("--json")
+
+		if self._case_sensitive == False:
+			fastfind_arg_list.append("-i")
 
 		fastfind_arg_list.append("-B"+str(get_setting("before_context")))
 		fastfind_arg_list.append("-A"+str(get_setting("after_context")))
@@ -378,7 +382,8 @@ class FastFindCommand(sublime_plugin.TextCommand):
 				root = self._root,
 				symbol = symbol,
 				folder = self._folder,
-				executable = self._executable)
+				executable = self._executable,
+				case_sensitive = self._case_sensitive)
 		worker.start()
 		self.workers.append(worker)
 		self._update_status(self.workers, symbol, True)
@@ -391,7 +396,8 @@ class FastFindCommand(sublime_plugin.TextCommand):
 			# print("folder not found in args")
 			return FolderInputHandler()
 
-	def run(self, _, folder, search_term):
+	def run(self, _, case_sensitive, folder, search_term):
+		self._case_sensitive = case_sensitive
 		self._folder = os.path.expandvars(folder)
 		# print("FastFind search path: ",self._folder)
 		# print("FastFind search term: ",search_term)
