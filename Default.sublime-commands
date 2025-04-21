@@ -5,6 +5,6 @@
 	},
 	{
 		"caption": "FastFind - Previous Search Result",
-		"command": "fast_find_results",
+		"command": "fast_find_show_history",
 	},
 ]

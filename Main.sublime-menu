@@ -4,7 +4,11 @@
 		"children": [
 			{
 				"command": "fast_find",
-				"caption": "Fast Find Using Ripgrep",
+				"caption": "FastFind Using Ripgrep",
+			},
+			{
+				"command": "fast_find_show_history",
+				"caption": "FastFind Show History",
 			}
 		]
 	}

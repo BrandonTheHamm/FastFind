@@ -63,6 +63,7 @@ def get_history_save_location() -> str:
 			save_dir = os.path.dirname(project_file_path)
 
 		search_history_filename = os.path.join(save_dir, search_history_filename)
+		print("history file path: " + search_history_filename)
 		return search_history_filename
 	return None
 
@@ -464,11 +465,6 @@ class FastFindShowHistoryCommand(sublime_plugin.TextCommand):
 		self.view = view
 		self.load_history_from_file()			
 
-	# def __del__(self):
-	# 	search_history_filename = get_setting("history_file")
-	# 	if search_history_filename != None:
-	# 		self.save_history_to_file(search_history_filename)
-
 	def load_history_from_file(self):
 		global search_history
 		filename = get_history_save_location()
@@ -494,7 +490,7 @@ class FastFindShowHistoryCommand(sublime_plugin.TextCommand):
 	def show_search_history_in_jumplist(self):
 		window = self.view.window()
 		items = []
-		self._log(search_history)
+		# self._log(search_history)
 		for search_term, search_results in search_history.items():
 			self._log("Search term = " + search_term)
 			items.append(sublime.QuickPanelItem(search_term,

@@ -4,7 +4,11 @@
 		"id": "FastFind"
 	},
 	{
-		"caption": "(FastFind) Search using Ripgrep",
+		"caption": "FastFind - Search using Ripgrep",
 		"command": "fast_find"
+	},
+	{
+		"caption": "FastFind - Show search history",
+		"command": "fast_find_show_history"
 	}
 ]
