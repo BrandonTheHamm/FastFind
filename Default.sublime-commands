@@ -3,4 +3,8 @@
 		"caption": "FastFind",
 		"command": "fast_find",
 	},
+	{
+		"caption": "FastFind - Previous Search Result",
+		"command": "fast_find_results",
+	},
 ]
