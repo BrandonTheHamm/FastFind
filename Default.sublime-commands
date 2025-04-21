@@ -7,4 +7,8 @@
 		"caption": "FastFind - Previous Search Result",
 		"command": "fast_find_show_history",
 	},
+	{
+		"caption": "FastFind - Clear Search History",
+		"command": "fast_find_clear_history",
+	},
 ]

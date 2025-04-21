@@ -18,7 +18,7 @@ FASTFIND_CONTEXT_MENU = os.path.dirname(os.path.realpath(__file__)) + "/Context.
 FASTFIND_SETTINGS_FILE = os.path.dirname(os.path.realpath(__file__)) + "/fastfind.sublime-settings"
 FASTFIND_SYNTAX_FILE = "Packages/" + FASTFIND_PLUGIN_DIR + "/FastFindResults.hidden-tmLanguage"
 
-search_history = {}
+# search_history = {}
 
 #------------------------------------------------------------------------------
 def get_nth_key(dictionary, n=0):
@@ -66,6 +66,26 @@ def get_history_save_location() -> str:
 		print("history file path: " + search_history_filename)
 		return search_history_filename
 	return None
+
+
+#------------------------------------------------------------------------------
+def save_history_to_file(search_history: dict):
+	filename = get_history_save_location()
+	if filename != None:
+		with open(filename, "wb+") as history_file:
+			pickle.dump(search_history, history_file)
+
+
+#------------------------------------------------------------------------------
+def load_history_from_file() -> dict:
+	search_history = {}
+	filename = get_history_save_location()
+	if filename != None:
+		if os.path.isfile(filename):
+			with open(filename, "rb") as history_file:
+				search_history = pickle.load(history_file)
+	return search_history
+
 
 #------------------------------------------------------------------------------
 def open_file_in_view(filename: str, line_number: int, char_index: int, preview_only: bool) -> sublime.View:
@@ -304,18 +324,8 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self._current_position = None
 		self._saved_viewport_pos = None
 		self._folder = None
+		self._search_history = load_history_from_file()
 		print("[FastFind] Loaded")
-
-
-	def __del__(self):
-		print("[FastFind] Unloading")
-
-	def save_history_to_file(self):
-		global search_history
-		filename = get_history_save_location()
-		if filename != None:
-			with open(filename, "wb+") as history_file:
-				pickle.dump(search_history, history_file)
 
 
 	def _update_status(self, workers: list, msgStr: str, show_results: bool, count: int = 0, dir: int = 1) -> None:
@@ -339,8 +349,8 @@ class FastFindCommand(sublime_plugin.TextCommand):
 				for worker in workers:
 					for result in worker._output:
 						self._find_results.append(result)
-					search_history[worker._symbol] = worker._output
-					self.save_history_to_file()
+					self._search_history[worker._symbol] = worker._output
+					save_history_to_file(self._search_history)
 					self._display_results_in_jump_list(worker._symbol, worker._output)
 
 
@@ -460,18 +470,18 @@ class FastFindCommand(sublime_plugin.TextCommand):
 		self._on_search_confirmed(search_term)
 
 
+
+class FastFindClearHistoryCommand(sublime_plugin.TextCommand):
+	def run(self, _):
+		self._search_history = load_history_from_file()
+		self._search_history.clear()
+		save_history_to_file(self._search_history)
+
+
 class FastFindShowHistoryCommand(sublime_plugin.TextCommand):
 	def __init__(self, view):
 		self.view = view
-		self.load_history_from_file()			
-
-	def load_history_from_file(self):
-		global search_history
-		filename = get_history_save_location()
-		if filename != None:
-			if os.path.isfile(filename):
-				with open(filename, "rb") as history_file:
-					search_history = pickle.load(history_file)
+		self._search_history = load_history_from_file()
 
 	def run(self, _):
 		if self.view is not None:
@@ -480,6 +490,7 @@ class FastFindShowHistoryCommand(sublime_plugin.TextCommand):
 		else:
 			self._current_position = None
 			self._saved_viewport_pos = None
+		self._search_history = load_history_from_file()
 		self.show_search_history_in_jumplist()
 
 
@@ -491,7 +502,7 @@ class FastFindShowHistoryCommand(sublime_plugin.TextCommand):
 		window = self.view.window()
 		items = []
 		# self._log(search_history)
-		for search_term, search_results in search_history.items():
+		for search_term, search_results in self._search_history.items():
 			self._log("Search term = " + search_term)
 			items.append(sublime.QuickPanelItem(search_term,
 				annotation="{0} results".format(len(search_results))))
@@ -504,8 +515,8 @@ class FastFindShowHistoryCommand(sublime_plugin.TextCommand):
 
 	def _select_search_history_entry(self, index: int) -> None:
 		if index >= 0:
-			search_term = get_nth_key(search_history, index)
-			selected_entry = search_history[search_term]
+			search_term = get_nth_key(self._search_history, index)
+			selected_entry = self._search_history[search_term]
 			self._display_results_in_jump_list(search_term, selected_entry)
 
 
